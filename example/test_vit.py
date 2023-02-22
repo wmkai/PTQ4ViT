@@ -68,7 +68,7 @@ def multiprocess(experiment_process, cfg_list=None, n_gpu=6):
     "cfg_list" arranges kwargs for each test point, and worker process will fetch kwargs and carry out an experiment.
     """
     args_queue = multiprocessing.Queue()
-    for cfg in cfg_list:
+    for cfg in cfg_list:  # 意思应该是每个GPU处理一个cfg_list，cfg_list作为experiment_process函数的参数
         args_queue.put(cfg)
 
     ps=[]

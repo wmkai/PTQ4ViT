@@ -15,12 +15,14 @@ from utils.quant_calib import HessianQuantCalibrator, QuantCalibrator
 from utils.models import get_net
 import time
 import pdb
+from torchstat import stat
 
 def test_all(name, cfg_modifier=lambda x: x, calib_size=32, config_name="PTQ4ViT"):
-    quant_cfg = init_config(config_name)
-    quant_cfg = cfg_modifier(quant_cfg)
+    quant_cfg = init_config(config_name) # <module 'configs.PTQ4ViT' from '/hdd1/wangmingkai/codes/PTQ4ViT/./configs/PTQ4ViT.py'>
+    quant_cfg = cfg_modifier(quant_cfg) # 调用cfg_modifier类的__call__函数
 
     net = get_net(name)
+    # stat(net.to(torch.device('cpu')), (3, 224, 224)) # 计算param和flops
 
     wrapped_modules=net_wrap.wrap_modules_in_net(net,quant_cfg)
 
@@ -56,7 +58,7 @@ class cfg_modifier():
         cfg.bit = self.bit_setting
         cfg.w_bit = {name: self.bit_setting[0] for name in cfg.conv_fc_name_list}
         cfg.w_bit["qconv"], cfg.w_bit["qlinear_qkv"], cfg.w_bit["qlinear_proj"], cfg.w_bit["qlinear_MLP_1"], cfg.w_bit["qlinear_MLP_2"], cfg.w_bit["qlinear_classifier"], cfg.w_bit["qlinear_reduction"] = \
-            self.bit_setting[0], [self.bit_setting[0] for x in range(12)], [self.bit_setting[0] for x in range(12)], [self.bit_setting[0] for x in range(12)], [self.bit_setting[0] for x in range(12)], self.bit_setting[0], [self.bit_setting[0] for x in range(1)]
+            self.bit_setting[0][0], self.bit_setting[0][1], self.bit_setting[0][2], self.bit_setting[0][3], self.bit_setting[0][4], self.bit_setting[0][5], self.bit_setting[0][6],
         cfg.a_bit = {name: self.bit_setting[1] for name in cfg.conv_fc_name_list}
         cfg.A_bit = {name: self.bit_setting[1] for name in cfg.matmul_name_list}
         cfg.B_bit = {name: self.bit_setting[1] for name in cfg.matmul_name_list}
@@ -86,7 +88,7 @@ if __name__=='__main__':
 
     names = [
         # "vit_tiny_patch16_224",
-        "vit_small_patch32_224",
+        # "vit_small_patch32_224",
         # "vit_small_patch16_224",
         # "vit_base_patch16_224",
         # "vit_base_patch16_384",
@@ -98,7 +100,7 @@ if __name__=='__main__':
 
         # "swin_tiny_patch4_window7_224",
         # "swin_small_patch4_window7_224",
-        # "swin_base_patch4_window7_224",
+        "swin_base_patch4_window7_224",
         # "swin_base_patch4_window12_384",
         ]
     metrics = ["hessian"]
@@ -108,7 +110,37 @@ if __name__=='__main__':
     # config_names = ["PTQ4ViT", "BasePTQ"]
 
     calib_sizes = [32]
-    bit_settings = [(8,8), (6,6)] # weight, activation
+    bit_settings = [ # weight, activation
+                    # (8,8),
+                    # (6,6),
+                    # vit weight:["qconv", "qlinear_qkv", "qlinear_proj", "qlinear_MLP_1", "qlinear_MLP_2", "qlinear_classifier", "qlinear_reduction"], activation
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # vit_tiny_patch16_224
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # vit_small_patch32_224
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # vit_small_patch16_224
+                    # SOTA: vit_base_patch16_224 6bit & 8bit
+                    # ([6, [6, 5, 5, 6, 5, 4, 5, 5, 6, 5, 5, 6], [6, 5, 5, 6, 5, 6, 4, 5, 6, 5, 5, 6], [6, 5, 4, 6, 5, 5, 4, 5, 4, 5, 6, 6], [6, 4, 5, 6, 5, 6, 4, 5, 5, 6, 5, 6], 6, [6]], 6), # vit_base_patch16_224 6 bit
+                    # ([8, [7, 6, 5, 7, 6, 7, 7, 7, 6, 7, 6, 7], [7, 6, 7, 5, 7, 6, 7, 6, 7, 6, 7, 7], [7, 6, 7, 5, 7, 6, 7, 6, 7, 6, 7, 7], [7, 6, 7, 7, 7, 7, 6, 7, 6, 7, 7, 6], 8, [8]], 8), # vit_base_patch16_224 8 bit
+
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # vit_base_patch16_384
+
+                    # deit
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # deit_tiny_patch16_224
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # deit_small_patch16_224
+                    # SOTA: deit_base_patch16_224 8bit
+                    # ([8, [8, 6, 5, 7, 6, 7, 8, 7, 6, 7, 6, 8], [8, 6, 7, 5, 7, 6, 7, 6, 7, 6, 7, 8], [8, 6, 7, 5, 7, 6, 7, 6, 7, 6, 7, 8], [8, 6, 8, 7, 8, 7, 6, 7, 6, 7, 8, 8], 8, [8]], 8), # deit_base_patch16_224
+
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8]], 8), # deit_base_patch16_384
+
+                    # swin
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8, 8, 8]], 8), # swin_tiny_patch4_window7_224
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8, 8, 8]], 8), # swin_small_patch4_window7_224
+
+                    # SOTA: deit_base_patch16_224 8bit
+                    # ([8, [6, 5, 6, 6, 6, 5, 6, 6, 5, 6, 6, 4, 6, 6, 6, 6, 5, 6, 6, 5, 6, 6, 6, 6], [6, 6, 6, 5, 6, 6, 6, 4, 6, 6, 6, 5, 5, 6, 6, 6, 6, 6, 6, 5, 6, 6, 5, 6], [6, 6, 5, 6, 6, 5, 6, 6, 6, 5, 6, 5, 6, 6, 6, 6, 5, 5, 6, 6, 6, 5, 6, 6], [6, 6, 5, 6, 6, 6, 6, 6, 5, 6, 6, 6, 5, 6, 6, 6, 5, 6, 6, 5, 5, 6, 6, 6], 6, [6, 6, 8]], 6), # swin_base_patch4_window7_224 6bit
+                    ([8, [8, 8, 8, 8, 7, 8, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8], [8, 8, 8, 7, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8, 8, 8, 7, 8, 8, 7, 8, 8, 8], [8, 8, 8, 8, 8, 8, 7, 8, 8, 7, 8, 8, 8, 7, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8], [8, 8, 7, 8, 7, 8, 8, 8, 8, 8, 7, 8, 8, 7, 8, 8, 8, 7, 8, 8, 8, 8, 8, 8], 8, [8, 8, 8]], 8), # swin_base_patch4_window7_224 8bit
+
+                    # ([8, [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8], 8, [8, 8, 8]], 8), # swin_base_patch4_window12_384
+                    ]
     config_names = ["PTQ4ViT"]
 
     cfg_list = []
@@ -121,7 +153,7 @@ if __name__=='__main__':
         })
 
     if args.multiprocess:
-        multiprocess(test_all, cfg_list, n_gpu=args.n_gpu)
+        multiprocess(test_all, cfg_list, n_gpu=args.n_gpu) # 意思应该是每个GPU处理一个cfg_list，cfg_list作为experiment_process函数的参数
     else:
         for cfg in cfg_list:
             test_all(**cfg)

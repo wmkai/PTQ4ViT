@@ -10,8 +10,6 @@ bit = 8
 conv_fc_name_list = ["qconv", "qlinear_qkv", "qlinear_proj", "qlinear_MLP_1", "qlinear_MLP_2", "qlinear_classifier", "qlinear_reduction"]
 matmul_name_list = [ "qmatmul_qk", "qmatmul_scorev"]
 w_bit = {name: bit for name in conv_fc_name_list}
-w_bit["qconv"], w_bit["qlinear_qkv"], w_bit["qlinear_proj"], w_bit["qlinear_MLP_1"], w_bit["qlinear_MLP_2"], w_bit["qlinear_classifier"], w_bit["qlinear_reduction"] = \
-    bit, [bit for x in range(12)], [bit for x in range(12)], [bit for x in range(12)], [bit for x in range(12)], bit, [bit for x in range(1)]
 # {'qconv': 8, 'qlinear_qkv': 8, 'qlinear_proj': 8, 'qlinear_MLP_1': 8, 'qlinear_MLP_2': 8, 'qlinear_classifier': 8, 'qlinear_reduction': 8}
 a_bit = {name: bit for name in conv_fc_name_list}
 # {'qconv': 8, 'qlinear_qkv': 8, 'qlinear_proj': 8, 'qlinear_MLP_1': 8, 'qlinear_MLP_2': 8, 'qlinear_classifier': 8, 'qlinear_reduction': 8}
@@ -91,6 +89,7 @@ def get_module(module_type, *args, **kwargs):
                 assert module_type == "qlinear_reduction", module_type
                 module=PTQSLBatchingQuantLinear(*args,**kwargs,w_bit=w_bit[module_type][qlinear_reduction_idx],a_bit=a_bit[module_type])
                 qlinear_reduction_idx += 1
+                pdb.set_trace()
 
     elif "qmatmul" in module_type:
         kwargs.update(ptqsl_matmul_kwargs)
